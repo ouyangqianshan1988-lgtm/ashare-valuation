@@ -1,4 +1,4 @@
-import { evaluate } from './valuation.mjs?v=20260917-forecast';
+import { evaluate } from './valuation.mjs?v=20260917-forecast2';
 import { initialAssumptions, forecastContext } from './forecast-model.mjs?v=20260917-forecast';
 
 const $ = id => document.getElementById(id);
@@ -8,7 +8,7 @@ const fmt = (n, digits=2) => finite(n) ? n.toLocaleString('zh-CN',{minimumFracti
 const pct = n => finite(n) ? `${fmt(n*100,1)}%` : '—';
 const labels = {bear:'悲观情景',base:'基准情景',bull:'乐观情景'};
 const methods = {fcff:'FCFF 现金流折现',financial:'金融企业 · 专用模型',nav:'资产净值 / 分部估值',cyclical:'周期企业 · 盈利正常化',unknown:'方法待确认'};
-const factLabels = {revenue:'年度营业收入',ebit:'EBIT 近似值',taxRate:'有效税率',depreciation:'年度折旧与摊销',capex:'年度资本支出',workingCapital:'经营营运资本（简化）',cash:'账面货币资金',debt:'有息债务合计',minorityInterest:'少数股东权益',shares:'总股本（未核实稀释）'};
+const factLabels = {revenue:'年度营业收入',ebit:'EBIT 近似值',taxRate:'历史有效税率（参考）',depreciation:'年度折旧与摊销',capex:'年度资本支出',workingCapital:'经营营运资本（简化）',cash:'账面货币资金',debt:'有息债务合计',minorityInterest:'少数股东权益',shares:'总股本（未核实稀释）'};
 const assumptionLabels = {probability:'情景概率',growth:'年营收增长率',margin:'EBIT 利润率',wacc:'折现率 WACC',terminalGrowth:'永续增长率',terminalRoic:'终值 ROIC',taxRate:'预测税率',daRatio:'折旧 / 营收',capexRatio:'资本支出 / 营收',nwcRatio:'营运资本 / 营收'};
 const featured = ['600519','000333','300750','600900','600036','601318','600276','002594','000858','601088'];
 let companies = {}, metadata = {}, forecasts = {}, forecastMetadata = {}, selected, assumptions, edits = {}, result = null;
@@ -98,7 +98,7 @@ function renderResult(c) {
   const r=result, blocked=r.status==='BLOCKED';
   $('model-state').className=`badge ${blocked?'blocked':'warning'}`;
   $('model-state').textContent=blocked?'BLOCKED · 等待输入':'DRAFT_REVIEW · 待复核';
-  const missing=Object.keys(factLabels).filter(k=>!finite(c.financials[k]));
+  const missing=Object.keys(factLabels).filter(k=>k!=='taxRate'&&!finite(c.financials[k]));
   let notice='';
   if(c.method!=='fcff'){
     notice=`<strong>此公司的估值方法需要单独处理</strong>${c.method==='financial'?'银行、保险和券商应使用股利折现、剩余收益或适当的股权模型。':c.method==='cyclical'?'周期行业需要先正常化盈利，不能直接外推单一年度。':c.method==='nav'?'房地产等资产型企业需要资产净值或分部估值。':'当前证据不足以确认适用方法。'} 已保留行情和可取得的财报，不输出普通 DCF 价格。`;

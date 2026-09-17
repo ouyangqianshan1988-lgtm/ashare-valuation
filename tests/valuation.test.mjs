@@ -145,13 +145,22 @@ test('sustained growth may exceed WACC because it applies only for a finite exte
 });
 
 test('blocks invalid factual bounds and dates while allowing negative minority interest', () => {
-  for (const [field, value] of [['cash', -1], ['debt', -1], ['depreciation', -1], ['capex', -1], ['taxRate', 1.1]]) {
+  for (const [field, value] of [['cash', -1], ['debt', -1], ['depreciation', -1], ['capex', -1]]) {
     const result = evaluate(company({ financials: { [field]: value } }), assumptions());
     assert.equal(result.status, 'BLOCKED', field);
   }
   assert.equal(evaluate(company({ financials: { minorityInterest: -10 } }), assumptions()).status, 'DRAFT_REVIEW');
   assert.equal(evaluate(company({ quoteDate: 'not-a-date' }), assumptions()).status, 'BLOCKED');
   assert.equal(evaluate(company({ financials: { reportDate: '2025-99-99' } }), assumptions()).status, 'BLOCKED');
+});
+test('historical effective tax can be exceptional or absent without overriding forecast tax',()=>{
+  for(const taxRate of [-.1,1.1,null]){
+    const r=evaluate(company({financials:{taxRate}}),assumptions());
+    assert.equal(r.status,'DRAFT_REVIEW');
+    assert.ok(Math.abs(r.weightedValue-7.5)<1e-9);
+  }
+  const a=assumptions();a.scenarios[1].taxRate=-.1;
+  assert.equal(evaluate(company(),a).status,'BLOCKED');
 });
 
 test('blocks non-finite computed outputs caused by overflow', () => {

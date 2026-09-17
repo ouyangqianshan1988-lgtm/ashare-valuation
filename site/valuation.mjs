@@ -1,4 +1,4 @@
-const FACTS = ['revenue', 'ebit', 'taxRate', 'depreciation', 'capex', 'workingCapital', 'cash', 'debt', 'minorityInterest', 'shares', 'reportDate'];
+const FACTS = ['revenue', 'ebit', 'depreciation', 'capex', 'workingCapital', 'cash', 'debt', 'minorityInterest', 'shares', 'reportDate'];
 const SCENARIO_FIELDS = ['probability', 'growth', 'margin', 'taxRate', 'daRatio', 'capexRatio', 'nwcRatio', 'wacc', 'terminalGrowth', 'terminalRoic'];
 const EPS = 1e-9;
 
@@ -27,7 +27,8 @@ function validate(company, assumptions) {
   if (finite(company.financials.revenue) && company.financials.revenue <= 0) errors.push(error('INVALID_BOUND', 'Revenue must be positive.', 'company.financials.revenue'));
   if (finite(company.financials.shares) && company.financials.shares <= 0) errors.push(error('INVALID_BOUND', 'Shares must be positive.', 'company.financials.shares'));
   for (const field of ['cash', 'debt', 'depreciation', 'capex']) if (finite(company.financials[field]) && company.financials[field] < 0) errors.push(error('INVALID_BOUND', `${field} 不能为负数。`, `company.financials.${field}`));
-  if (finite(company.financials.taxRate) && (company.financials.taxRate < 0 || company.financials.taxRate > 1)) errors.push(error('INVALID_BOUND', '事实税率必须在 0 到 1 之间。', 'company.financials.taxRate'));
+  // Historical effective tax is reference evidence; forecast tax is validated per scenario.
+  if (company.financials.taxRate != null && !finite(company.financials.taxRate)) errors.push(error('NONFINITE_VALUE', '历史有效税率必须为有限数值或缺失。', 'company.financials.taxRate'));
   if (!validDate(company.quoteDate)) errors.push(error('INVALID_DATE', '行情日期必须是有效的 YYYY-MM-DD 日期。', 'company.quoteDate'));
   if (!validDate(company.financials.reportDate)) errors.push(error('INVALID_DATE', '财报日期必须是有效的 YYYY-MM-DD 日期。', 'company.financials.reportDate'));
   if (!assumptions || !Array.isArray(assumptions.scenarios) || assumptions.scenarios.length !== 3) return [...errors, error('INVALID_SCENARIOS', 'Exactly bear, base, and bull scenarios are required.', 'assumptions.scenarios')];

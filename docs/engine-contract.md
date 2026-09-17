@@ -19,7 +19,7 @@ company = {
   financials: {
     revenue: number,
     ebit: number,
-    taxRate: number,
+    taxRate?: number | null, // historical effective rate, reference only; may be outside 0..1
     depreciation: number,
     capex: number,
     workingCapital: number, // may be negative
