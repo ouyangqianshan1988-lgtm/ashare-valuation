@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="查询 A 股行情与财报，使用透明的现金流折现模型探索估值区间、增长假设和价格隐含预期。">
+  <meta name="theme-color" content="#142c32"><title>方寸估值 · A 股价值研究台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23142c32'/%3E%3Cpath d='M17 44V28h8v16m7 0V19h8v25m7 0V10h5v34' stroke='%23d6f0bd' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css"><script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./"><span class="brandmark">⌑</span><span>方寸估值<small>A-SHARE RESEARCH</small></span></a><nav><a href="#workspace" class="active">估值工作台</a><a href="#methodology">方法与来源 ↗</a></nav><span class="header-tag">独立思考 · 看见假设</span></header>
+  <div class="shell" id="workspace">
+    <aside class="sidebar"><div class="side-title"><span>研究标的</span><span class="tiny" id="stock-count">正在载入</span></div>
+      <label class="searchbox"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="搜索股票名称 / 代码" aria-label="搜索股票名称或代码"><kbd>/</kbd></label>
+      <p class="section-label" id="list-label">常用研究标的</p><div id="stock-list" class="stock-list" aria-live="polite"><p class="muted">正在读取市场数据…</p></div>
+      <div class="side-note"><span class="dot"></span><b>每日数据快照</b><p>行情与财报分别标注日期。<br>估值随假设变化，不等于目标价。</p><small id="snapshot-time">数据连接中</small></div>
+      <a class="repo-link" href="https://github.com/ouyangqianshan1988-lgtm/ashare-valuation" target="_blank" rel="noopener">查看开源项目 <span>↗</span></a>
+    </aside>
+    <main id="main-content"><div class="page-heading"><div><p class="eyebrow">PRICE IS WHAT YOU PAY. VALUE IS WHAT YOU GET.</p><h1>价格之外，理解价值。</h1><p class="muted">从真实财报出发，让每一个估值假设都有迹可循。</p></div><span class="edition">RESEARCH DESK <b>01 / A 股</b></span></div>
+      <div id="load-error" class="notice error" hidden></div>
+      <div id="company-view" hidden>
+        <section id="company-overview" class="overview"></section>
+        <div class="tabline"><a class="active" href="#valuation-section">估值概览</a><a href="#assumptions">模型假设</a><a href="#evidence">财报与证据</a><span>人民币 CNY · 每股价值</span></div>
+        <section id="valuation-section"><div class="section-heading"><h2>估值区间 <span class="light">/ 三种未来，一起看</span></h2><span id="model-state" class="badge">等待分析</span></div>
+          <div id="model-notice"></div><div id="valuation-cards" class="cards"></div><div id="range-chart"></div>
+        </section>
+        <section class="analysis-grid"><article class="panel"><div class="section-heading"><h2>当前价格，隐含了什么？</h2><span class="pill">反向 DCF</span></div><div id="reverse"></div></article><article class="panel"><div class="section-heading"><h2>增长质量检查</h2><span class="pill">证据优先</span></div><div id="quality"></div></article></section>
+        <section id="assumptions" class="panel"><div class="section-heading"><div><h2>把假设交还给你</h2><p class="muted">所有预测参数均为可修改的研究假设，不代表机构一致预期。</p></div><button class="text-button" id="reset">恢复初始假设 ↺</button></div><div id="assumption-fields"></div><div class="form-bottom"><span id="edit-status">初始参数仅用于试算</span><button class="primary" id="calculate">重新计算估值 <span>↗</span></button></div></section>
+        <section class="analysis-grid"><article class="panel sensitivity-panel"><div class="section-heading"><h2>敏感性分析</h2><span class="tiny">基准情景 · 元 / 股</span></div><p class="muted">折现率与永续增长率的小幅变化，会怎样影响估值？</p><div id="sensitivity" class="table-scroll"></div></article><article class="panel"><div class="section-heading"><h2>从企业价值到每股价值</h2></div><div id="bridge"></div></article></section>
+        <section id="evidence" class="panel"><div class="section-heading"><div><h2>财报事实与数据缺口</h2><p class="muted">金额以亿元展示；空白表示缺失。手动输入将明确标为用户提供。</p></div><span class="pill" id="report-period"></span></div><div id="facts"></div><div id="sources" class="sources"></div></section>
+        <details class="panel" id="forecast-details"><summary>查看五年经营预测 <span>营收 → EBIT → FCFF</span></summary><div id="forecast" class="table-scroll"></div></details>
+      </div>
+      <section id="methodology" class="methodology"><div><p class="eyebrow">OUR METHODOLOGY</p><h2>模型给出区间，<br>证据决定可信度。</h2></div><div><p>参考 <a href="https://github.com/SherryCW/dcf-sherry" target="_blank" rel="noopener">dcf-sherry ↗</a> 的分层框架：先选择适用方法，再用现金流和反向估值研究价格，最后检查增长质量。</p><p>本工具为简化年度 FCFF 研究模型，未完成逐家公司原始公告核验。可计算结果保持“待复核”；银行、保险、房地产及识别出的强周期企业不套用普通 DCF。未接入可信前瞻一致预期时，不展示 PEG。</p><p>仅供学习与研究，不构成投资建议。</p></div></section>
+      <footer><span>方寸估值 <span class="muted">/ 让价值研究有据可循</span></span><span>腾讯财经 · 东方财富 · GitHub Pages</span></footer>
+    </main>
+  </div>
+</body></html>
