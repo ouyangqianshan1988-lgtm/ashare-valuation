@@ -60,4 +60,12 @@ class CollectorTests(unittest.TestCase):
         self.assertEqual(rows,{})
         self.assertTrue(errors)
 
+    def test_quote_only_refresh_updates_share_bridge_and_source_date(self):
+        old={'600000':{'code':'600000','quoteDate':'2026-09-16','financials':{'shares':100},'sources':[{'name':'腾讯财经 · 行情','date':'2026-09-16'}],'missing':[]}}
+        new={'600000':{'quoteDate':'2026-09-17','shares':200,'price':5}}
+        merged=self.m.merge_quotes(old,new)['600000']
+        self.assertEqual(merged['financials']['shares'],200)
+        self.assertEqual(merged['sources'][0]['date'],'2026-09-17')
+        self.assertEqual(old['600000']['financials']['shares'],100)
+
 if __name__ == '__main__': unittest.main()

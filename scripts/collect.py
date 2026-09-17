@@ -49,7 +49,14 @@ def latest_visible(rows, cutoff):
 
 def merge_quotes(old, new):
     merged = dict(old)
-    for code, quote in new.items(): merged[code] = {**old.get(code,{}), **quote}
+    for code, quote in new.items():
+        item = {**old.get(code,{}), **quote}
+        if 'financials' in item and number(quote.get('shares')) is not None and quote['shares'] > 0:
+            item['financials'] = {**item['financials'], 'shares':quote['shares']}
+            item['missing'] = [k for k,v in item['financials'].items() if v is None]
+        if 'sources' in item:
+            item['sources'] = [{**s, **({'date':quote['quoteDate']} if '腾讯' in s.get('name','') and quote.get('quoteDate') else {})} for s in item['sources']]
+        merged[code] = item
     return merged
 
 def rows_from_payload(payload):
@@ -207,7 +214,7 @@ def main():
         if all(code in tables[k] for k in ['income','balance','cashflow','metrics']):
             companies[code] = normalize(code,tables,q,stamp)
         elif code in old:
-            companies[code] = {**old[code],**q}
+            companies[code] = merge_quotes({code:old[code]}, {code:q})[code]
         else:
             companies[code] = normalize(code,tables,q,stamp)
     if not companies: raise SystemExit('No valid data obtained; existing dataset was not overwritten.')
