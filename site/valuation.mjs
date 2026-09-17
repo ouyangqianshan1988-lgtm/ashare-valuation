@@ -36,6 +36,12 @@ function validate(company, assumptions) {
   assumptions.scenarios.forEach((scenario, index) => {
     for (const field of SCENARIO_FIELDS) if (!finite(scenario?.[field])) errors.push(error('NONFINITE_VALUE', `${field} must be finite.`, `assumptions.scenarios.${index}.${field}`));
     if (!scenario) return;
+    for (const field of ['revenuePath', 'marginPath']) {
+      if (!Object.hasOwn(scenario, field)) continue;
+      const values = scenario[field];
+      const validEntry = (value) => finite(value) && (field === 'revenuePath' ? value > 0 : value >= -1 && value <= 1);
+      if (!Array.isArray(values) || values.length !== 5 || !Array.from(values).every(validEntry)) errors.push(error('INVALID_PATH', `${field} must contain exactly five valid annual values.`, `assumptions.scenarios.${index}.${field}`));
+    }
     const inRange = (field, min, max, includeMin = true) => {
       const value = scenario[field];
       if (finite(value) && ((includeMin ? value < min : value <= min) || value > max)) errors.push(error('INVALID_BOUND', `${field} is outside its valid range.`, `assumptions.scenarios.${index}.${field}`));
@@ -60,8 +66,8 @@ function project(financials, scenario, years = 5) {
   let pvExplicit = 0;
   const forecast = [];
   for (let year = 1; year <= years; year += 1) {
-    revenue *= 1 + scenario.growth;
-    const ebit = revenue * scenario.margin;
+    revenue = scenario.revenuePath ? scenario.revenuePath[year - 1] : revenue * (1 + scenario.growth);
+    const ebit = revenue * (scenario.marginPath ? scenario.marginPath[year - 1] : scenario.margin);
     const nopat = ebit * (1 - scenario.taxRate);
     const depreciation = revenue * scenario.daRatio;
     const capex = revenue * scenario.capexRatio;
@@ -80,7 +86,8 @@ function scenarioValue(financials, scenario) {
   const projection = project(financials, scenario);
   const g = scenario.terminalGrowth;
   const reinvestmentRate = Math.abs(g) <= EPS ? 0 : g / scenario.terminalRoic;
-  const terminalFcff = projection.revenue * (1 + g) * scenario.margin * (1 - scenario.taxRate) * (1 - reinvestmentRate);
+  const terminalMargin = scenario.marginPath ? scenario.marginPath[4] : scenario.margin;
+  const terminalFcff = projection.revenue * (1 + g) * terminalMargin * (1 - scenario.taxRate) * (1 - reinvestmentRate);
   const terminalValue = terminalFcff / (scenario.wacc - g);
   const pvTerminal = terminalValue / (1 + scenario.wacc) ** 5;
   const enterpriseValue = projection.pvExplicit + pvTerminal;
@@ -118,17 +125,18 @@ function bisect(fn, low, high, tolerance = 1e-9) {
 function durationValue(financials, scenario, sustainedGrowth, years) {
   if (years < 5) return NaN;
   const initial = project(financials, scenario, 5);
+  const terminalMargin = scenario.marginPath ? scenario.marginPath[4] : scenario.margin;
   let revenue = initial.revenue; let previousNwc = initial.projectedNwc; let pvExplicit = initial.pvExplicit;
   for (let year = 6; year <= years; year += 1) {
     revenue *= 1 + sustainedGrowth;
     const projectedNwc = revenue * scenario.nwcRatio;
-    const fcff = revenue * scenario.margin * (1 - scenario.taxRate) + revenue * scenario.daRatio - revenue * scenario.capexRatio - (projectedNwc - previousNwc);
+    const fcff = revenue * terminalMargin * (1 - scenario.taxRate) + revenue * scenario.daRatio - revenue * scenario.capexRatio - (projectedNwc - previousNwc);
     pvExplicit += fcff / (1 + scenario.wacc) ** year;
     previousNwc = projectedNwc;
   }
   const g = scenario.terminalGrowth;
   const reinvestmentRate = Math.abs(g) <= EPS ? 0 : g / scenario.terminalRoic;
-  const terminalFcff = revenue * (1 + g) * scenario.margin * (1 - scenario.taxRate) * (1 - reinvestmentRate);
+  const terminalFcff = revenue * (1 + g) * terminalMargin * (1 - scenario.taxRate) * (1 - reinvestmentRate);
   const ev = pvExplicit + terminalFcff / (scenario.wacc - g) / (1 + scenario.wacc) ** years;
   return (ev + financials.cash - financials.debt - financials.minorityInterest) / financials.shares;
 }

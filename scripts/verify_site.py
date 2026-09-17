@@ -5,7 +5,7 @@ import re
 
 root = Path(__file__).resolve().parents[1]
 site = root/'site'
-for name in ['index.html','styles.css','app.mjs','valuation.mjs','data/companies.json','data/health.json']:
+for name in ['index.html','styles.css','app.mjs','valuation.mjs','forecast-model.mjs','data/companies.json','data/health.json','data/forecasts.json']:
     assert (site/name).is_file(), f'Missing deploy artifact: {name}'
 raw = (site/'data/companies.json').read_text(encoding='utf8')
 payload = json.loads(raw, parse_constant=lambda x: (_ for _ in ()).throw(ValueError(x)))
@@ -17,6 +17,13 @@ for code, c in companies.items():
     assert c['price'] is None or c['price'] > 0, code
     assert c['financials']['reportDate'] is None or re.fullmatch(r'\d{4}-\d{2}-\d{2}',c['financials']['reportDate']),code
     assert len(c['missing']) == len([k for k,v in c['financials'].items() if v is None]), code
+forecasts=json.loads((site/'data/forecasts.json').read_text(encoding='utf8'),parse_constant=lambda x: (_ for _ in ()).throw(ValueError(x)))
+for code, entry in forecasts['companies'].items():
+    assert code in companies and entry['code']==code, code
+    assert entry['status'] in ['ok','unavailable','error_cached','error'], code
+    for row in entry.get('years',[]):
+        assert row['kind'] in ['actual','estimate'] and isinstance(row['year'],int), code
+        assert isinstance(row.get('counts'),dict), code
 for p in site.rglob('*'):
     if p.is_file():
         assert p.suffix not in ['.py','.env','.pem','.key'], f'Non-public file in artifact: {p.name}'

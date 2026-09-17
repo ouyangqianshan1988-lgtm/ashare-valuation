@@ -31,7 +31,7 @@ jobs:
       - name: Verify parsers and valuation engine
         run: |
           python -m unittest discover -s tests -p 'test_*.py'
-          node --test tests/valuation.test.mjs
+          node --test tests/*.test.mjs
           node --check site/app.mjs
       - name: Refresh public snapshots
         if: github.event_name != 'push'
@@ -41,6 +41,14 @@ jobs:
       - name: Record refresh failure
         if: steps.refresh.outcome == 'failure'
         run: echo 'Data provider refresh failed. The website preserves the last valid snapshot and shows its original dates.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Refresh company forecasts
+        if: github.event_name != 'push'
+        id: forecasts
+        continue-on-error: true
+        run: python scripts/collect_forecasts.py
+      - name: Record forecast refresh failure
+        if: steps.forecasts.outcome == 'failure'
+        run: echo 'Company forecast refresh failed. Original cached dates remain visible; stale forecasts are not automatically adopted.' >> "$GITHUB_STEP_SUMMARY"
       - name: Persist dated snapshots
         if: github.event_name != 'push'
         run: |

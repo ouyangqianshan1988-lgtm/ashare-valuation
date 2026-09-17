@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { evaluate } from '../site/valuation.mjs';
 
+const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-7, `${actual} != ${expected}`);
+
 const company = (overrides = {}) => ({
   code: '600000', name: '测试公司', method: 'fcff', price: 10, quoteDate: '2026-09-16',
   financials: {
@@ -204,4 +206,68 @@ test('reverse growth with non-positive ROIC only admits zero growth', () => {
     assert.equal(unreachable.reverse.terminalGrowth.status, 'UNREACHABLE');
     assert.equal(unreachable.reverse.impliedTerminalGrowth, null);
   }
+});
+
+test('annual paths price independently specified cash flows and terminal margin', () => {
+  const input = assumptions();
+  for (const s of input.scenarios) Object.assign(s, {
+    revenuePath: [2500, 3000, 3200, 3500, 3600], marginPath: [0.05, 0.08, 0.1, 0.12, 0.15],
+    daRatio: 0.02, capexRatio: 0.03, nwcRatio: 0.1, terminalGrowth: 0.02,
+  });
+  const original = structuredClone(input);
+  const result = evaluate(company({ financials: { workingCapital: 100 } }), input);
+  assert.equal(result.status, 'DRAFT_REVIEW');
+  const base = result.scenarios[1];
+  const cashFlows = [-81.25, 100, 188, 250, 359];
+  const explicit = cashFlows.reduce((sum, cf, i) => sum + cf / 1.1 ** (i + 1), 0);
+  const terminal = 3600 * 1.02 * 0.15 * 0.75 * (1 - 0.02 / 0.12);
+  assert.deepEqual(base.forecast.map(y => y.revenue), input.scenarios[1].revenuePath);
+  base.forecast.forEach((y, i) => close(y.fcff, cashFlows[i]));
+  close(base.pvExplicit, explicit);
+  close(base.terminalFcff, terminal);
+  close(base.pvTerminal, terminal / 0.08 / 1.1 ** 5);
+  close(result.sensitivity.values[2][2], base.valuePerShare);
+  const recovered = evaluate(company({ price: base.valuePerShare, financials: { workingCapital: 100 } }), input);
+  close(recovered.reverse.impliedTerminalGrowth, 0.02);
+  close(recovered.reverse.impliedDurationYears, 5);
+  assert.deepEqual(input, original);
+});
+
+test('invalid supplied paths block including sparse arrays and non-numeric entries', () => {
+  for (const field of ['revenuePath', 'marginPath']) {
+    const invalid = [undefined, null, {}, [], [1, 1, 1, 1], [1, 1, 1, 1, 1, 1], Array(5), [1, 1, 1, 1, NaN], [1, 1, 1, 1, Infinity], [1, 1, 1, 1, '0.1']];
+    invalid.push(field === 'revenuePath' ? [1, 1, 1, 1, 0] : [0, 0, 0, 0, 1.01]);
+    invalid.push(field === 'revenuePath' ? [1, 1, 1, 1, -1] : [0, 0, 0, 0, -1.01]);
+    for (const path of invalid) {
+      const input = assumptions();
+      input.scenarios[1][field] = path;
+      const result = evaluate(company(), input);
+      assert.equal(result.status, 'BLOCKED', `${field}: ${String(path)}`);
+      assert.ok(result.errors.some(e => e.path === `assumptions.scenarios.1.${field}`));
+    }
+  }
+});
+
+test('paths are independently optional while uniform growth limits remain enforced', () => {
+  const input = assumptions();
+  input.scenarios[0].revenuePath = [3000, 3000, 3000, 3000, 3000];
+  input.scenarios[1].marginPath = [-1, 0, 0.2, 0.3, 1];
+  const result = evaluate(company(), input);
+  assert.equal(result.status, 'DRAFT_REVIEW');
+  close(result.scenarios[0].valuePerShare, 22.5);
+  assert.deepEqual(result.scenarios[1].forecast.map(y => y.ebit), [-1000, 0, 200, 300, 1000]);
+  close(result.scenarios[2].valuePerShare, 7.5);
+  input.scenarios[0].growth = 1.01;
+  assert.equal(evaluate(company(), input).status, 'BLOCKED');
+});
+
+test('duration extension preserves annual paths and fifth-year economics', () => {
+  const input = assumptions({ advantageYears: 8, sustainedGrowth: 0.03 });
+  Object.assign(input.scenarios[1], { revenuePath: [1200, 1400, 1500, 1600, 1700], marginPath: [0.05, 0.06, 0.08, 0.12, 0.2], terminalGrowth: 0.01 });
+  let ev = [45, 63, 90, 144, 255].reduce((sum, cf, i) => sum + cf / 1.1 ** (i + 1), 0);
+  for (let year = 6; year <= 8; year++) ev += 1700 * 1.03 ** (year - 5) * 0.15 / 1.1 ** year;
+  ev += 1700 * 1.03 ** 3 * 1.01 * 0.15 * (1 - 0.01 / 0.12) / 0.09 / 1.1 ** 8;
+  const result = evaluate(company({ price: ev / 100 }), input);
+  assert.equal(result.reverse.duration.status, 'SOLVED');
+  close(result.reverse.impliedDurationYears, 8);
 });

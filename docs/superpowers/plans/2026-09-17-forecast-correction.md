@@ -1,0 +1,14 @@
+# Company forecast correction implementation plan
+
+Goal: Replace uniform growth extrapolation with dated company forecasts, expose missing evidence, and prevent automatic presentation of unreviewed assumptions as a company valuation.
+
+Architecture: A daily collector uses Eastmoney public forecast coverage and company ProfitForecast/PageAjax data. Separate forecasts.json stores actual and estimated years distinctly, per-field counts, collection time and report dates. The browser displays forecasts and builds editable five-year revenue and EBIT-proxy paths. Existing FCFF engine accepts optional annual paths while preserving legacy explicit manual scenarios. WACC, tax, reinvestment and tail estimates require explicit user acknowledgement before a price is displayed.
+
+- [ ] Collector: tests for E/A distinction, units, code/date validation, counts, failed-refresh date preservation; fetch all covered companies with bounded concurrency. Cache unavailable data with original dates; successful no-coverage clears obsolete forecasts.
+- [ ] Engine: optional revenuePath/marginPath arrays of exactly five entries. Use annual values in all scenarios, terminal uses fifth-year margin, inverse and sensitivity consistent; allow >100% sourced first-year growth without changing uniform-growth guardrails. Add independent numerical tests and malformed path tests.
+- [ ] Browser: show consensus estimates with sources/counts and computed forward PE; no EPS-to-revenue substitution. First 2–3 years use E revenue rows aligned to annual baseline, remaining growth linearly fades to terminal growth as a clearly identified model assumption. EBIT proxy = forecast operating-profit margin + historical finance-expense ratio; no claim that source supplies EBIT. Scenario stresses are explicit model assumptions. Missing, stale, incomplete or under-covered predictions require manual entry instead of generic auto-prices. Do not automatically extend very low historical tax rates. Explicit acknowledgement gates all valuation output.
+- [ ] Integration: daily workflow includes forecast collection and tests; run live collection, engine/data tests and browser smoke tests. Publish and verify hosted pipeline/data including 688256 and 600519.
+
+Data contract: forecasts.json = {meta:{lastAttemptAt,collectedAt,errors,covered,total},companies:{[code]:{code,collectedAt,latestReportDate,sourceUrl,status,years:[{year,kind:'actual'|'estimate',revenue,operatingProfit,eps,netProfit,counts:{revenue,operatingProfit,eps,netProfit}}]}}}. Null remains null. Source dates are distinct from collection dates.
+
+Engine contract: optional scenario.revenuePath and scenario.marginPath, both arrays length 5; values absolute CNY and decimal margins. Invalid supplied paths block. No scenario path means legacy uniform calculation. Terminal and duration-extension margin uses marginPath[4] when supplied. Calendar labels derive from financials.reportDate year + 1..5.

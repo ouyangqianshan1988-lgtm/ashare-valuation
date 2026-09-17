@@ -165,7 +165,7 @@ def normalize(code, tables, quote, collected):
     missing = [k for k,v in f.items() if v is None]
     return dict(code=code,name=name,industry=industry,method=route(industry,name,i.get('ORG_TYPE','')),price=quote.get('price'),quoteDate=quote.get('quoteDate'),quoteTime=quote.get('quoteTime'),
         changePct=quote.get('changePct'),pe=quote.get('pe'),pb=quote.get('pb'),marketCap=quote.get('marketCap'),financials=f,proposals=proposals,missing=missing,
-        historical=dict(roic=number(m.get('ROIC')),revenueGrowth=number(m.get('TOTALOPERATEREVETZ')),operatingCashFlow=number(c.get('NETCASH_OPERATE')),netProfit=number(c.get('NETPROFIT'))),
+        historical=dict(financeExpense=number(i.get('FINANCE_EXPENSE')) if same_period else None,roic=number(m.get('ROIC')),revenueGrowth=number(m.get('TOTALOPERATEREVETZ')),operatingCashFlow=number(c.get('NETCASH_OPERATE')),netProfit=number(c.get('NETPROFIT'))),
         noticeDate=max([str(x.get('NOTICE_DATE') or '')[:10] for x in [i,b,c,m]]),collectedAt=collected,sources=sources,
         notes=['年度基期模型，非 TTM；较新季报未并入预测基期。','EBIT 为营业利润加财务费用近似值，未剔除投资收益及非经常项目。','营运资本口径：存货＋应收票据及账款－应付票据及账款；不含全部经营项目。','现金使用账面货币资金，需核对受限资金；少数股东权益用账面值。','股数采用行情总股本，未核实未来稀释；多地上市价格差异未建模。'])
 
