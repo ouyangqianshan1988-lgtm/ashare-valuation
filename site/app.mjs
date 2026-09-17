@@ -1,5 +1,5 @@
-import { evaluate } from './valuation.mjs';
-import { initialAssumptions, forecastContext } from './forecast-model.mjs';
+import { evaluate } from './valuation.mjs?v=20260917-forecast';
+import { initialAssumptions, forecastContext } from './forecast-model.mjs?v=20260917-forecast';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
