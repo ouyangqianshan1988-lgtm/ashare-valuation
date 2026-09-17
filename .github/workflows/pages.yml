@@ -49,6 +49,8 @@ jobs:
       - name: Record forecast refresh failure
         if: steps.forecasts.outcome == 'failure'
         run: echo 'Company forecast refresh failed. Original cached dates remain visible; stale forecasts are not automatically adopted.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Generate automatic company estimates
+        run: node scripts/build_estimates.mjs
       - name: Persist dated snapshots
         if: github.event_name != 'push'
         run: |
