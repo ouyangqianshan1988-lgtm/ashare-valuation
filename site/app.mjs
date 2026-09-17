@@ -46,8 +46,17 @@ function renderFacts() {
   }).join('')}</div><div class="fact-note">${selected.notes.map(n=>esc(n)).join('<br>')}<br>财报公告日期：${esc(selected.noticeDate||'缺失')}。报告期与行情日不同，期间分红、回购、融资等尚未滚动调整。</div>`;
   $('sources').innerHTML=selected.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.name)}${s.date?' · '+esc(s.date):''} ↗</a>`).join('');
 }
+function assumptionSource(key, index) {
+  const f=selected.financials, period=esc(f.reportDate||'报告期缺失');
+  if(['probability','growth','wacc','terminalGrowth','terminalRoic'].includes(key)) return '初始：通用假设 · 非公司预测';
+  if(key==='taxRate') return finite(f.taxRate)&&f.taxRate>=0&&f.taxRate<=1 ? `初始：${period} 历史有效税率 · 非长期预测` : '初始：通用假设 · 缺少有效税率';
+  const fact={margin:'ebit',daRatio:'depreciation',capexRatio:'capex',nwcRatio:'workingCapital'}[key];
+  if(f.revenue>0&&finite(f[fact])) return `初始：${period} 财报计算${key==='margin'&&index!==1?' × '+(index===0?'90%':'110%')+' 假设':''} · 非未来预测`;
+  if(key==='daRatio'&&f.revenue>0&&finite(selected.proposals?.depreciation?.value)) return `初始：${period} 已披露部分合计推算 · 未核实完整性`;
+  return '初始：通用假设 · 缺少完整财报数据';
+}
 function renderAssumptions() {
-  $('assumption-fields').innerHTML=`<div class="assumption-grid">${assumptions.scenarios.map((s,i)=>`<div class="scenario-form"><h3>${labels[s.name]} <span class="tiny">${['BEAR','BASE','BULL'][i]}</span></h3>${Object.entries(assumptionLabels).map(([key,label])=>`<div class="field-row"><label for="${s.name}-${key}">${label}</label><div class="input-unit"><input id="${s.name}-${key}" data-scenario="${i}" data-param="${key}" type="number" step="0.1" value="${Number((s[key]*100).toFixed(5))}" aria-label="${labels[s.name]}${label}"><span>%</span></div></div>`).join('')}</div>`).join('')}</div><div class="duration-fields"><div class="field-row"><label for="advantage-years">假设竞争优势持续期</label><div class="input-unit"><input id="advantage-years" type="number" min="0" max="100" step="1" value="${assumptions.advantageYears}"><span>年</span></div></div><div class="field-row"><label for="sustained-growth">反向推演的持续增速</label><div class="input-unit"><input id="sustained-growth" type="number" step="0.1" value="${assumptions.sustainedGrowth*100}"><span>%</span></div></div></div><p class="muted">预测期 5 年 · 初始营收增速 3% / 7% / 11% 为统一试算假设；利润率与投入比率参考基期。请按公司情况调整。</p>`;
+  $('assumption-fields').innerHTML=`<div class="assumption-grid">${assumptions.scenarios.map((s,i)=>`<div class="scenario-form"><h3>${labels[s.name]} <span class="tiny">${['BEAR','BASE','BULL'][i]}</span></h3>${Object.entries(assumptionLabels).map(([key,label])=>`<div class="field-row"><label for="${s.name}-${key}">${label}<small class="param-source">${assumptionSource(key,i)}</small></label><div class="input-unit"><input id="${s.name}-${key}" data-scenario="${i}" data-param="${key}" type="number" step="0.1" value="${Number((s[key]*100).toFixed(5))}" aria-label="${labels[s.name]}${label}"><span>%</span></div></div>`).join('')}</div>`).join('')}</div><div class="duration-fields"><div class="field-row"><label for="advantage-years">假设竞争优势持续期</label><div class="input-unit"><input id="advantage-years" type="number" min="0" max="100" step="1" value="${assumptions.advantageYears}"><span>年</span></div></div><div class="field-row"><label for="sustained-growth">反向推演的持续增速</label><div class="input-unit"><input id="sustained-growth" type="number" step="0.1" value="${assumptions.sustainedGrowth*100}"><span>%</span></div></div></div><p class="muted">预测期 5 年 · 初始营收增速 3% / 7% / 11% 为统一试算假设；利润率与投入比率参考基期。请按公司情况调整。</p>`;
   $('edit-status').textContent='初始参数仅用于试算';
 }
 function readInputs() {
